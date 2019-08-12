@@ -21,14 +21,14 @@ class IntrinsicQATModuleTest(TestCase):
     # to prevent spurious failures due to cuda runtime initialization.
 
     @no_deadline
-    @given(batch_size=st.integers(1, 3),
-           input_channels_per_group=st.sampled_from([2, 4, 5, 8, 16, 32]),
-           height=st.integers(10, 16),
-           width=st.integers(7, 14),
-           output_channels_per_group=st.sampled_from([2, 4, 5, 8, 16, 32]),
+    @given(batch_size=st.integers(1, 2),
+           input_channels_per_group=st.sampled_from([2, 3, 4]),
+           height=st.integers(5, 10),
+           width=st.integers(5, 10),
+           output_channels_per_group=st.sampled_from([2, 3]),
            groups=st.integers(1, 3),
-           kernel_h=st.integers(1, 7),
-           kernel_w=st.integers(1, 7),
+           kernel_h=st.integers(1, 3),
+           kernel_w=st.integers(1, 3),
            stride_h=st.integers(1, 2),
            stride_w=st.integers(1, 2),
            pad_h=st.integers(0, 2),
@@ -96,9 +96,8 @@ class IntrinsicQATModuleTest(TestCase):
             ).to(dtype=torch.float).disable_fake_quant()
 
             # align inputs and internal parameters
-            input = torch.randn(batch_size, input_channels, height, width, dtype=torch.float)
-            input.requires_grad_()
-            conv_op.weight = Parameter(qat_op.weight)
+            input = torch.randn(batch_size, input_channels, height, width, dtype=torch.float, requires_grad=True)
+            conv_op.weight = qat_op.weight
             bn_op.running_mean = qat_op.running_mean
             bn_op.running_var = qat_op.running_var
             bn_op.weight = qat_op.gamma
@@ -123,17 +122,21 @@ class IntrinsicQATModuleTest(TestCase):
             else:
                 ref_op = compose([conv_op, bn_op, relu_op])
 
-            result_ref = ref_op(input)
-            result_actual = qat_op(input)
-            self.assertEqual(result_ref, result_actual)
+            input_clone = input.clone().detach_().requires_grad_()
+            for i in range(2):
+                result_ref = ref_op(input)
+                result_actual = qat_op(input_clone)
+                self.assertEqual(result_ref, result_actual)
 
-            # backward
-            dout = torch.randn(result_ref.size(), dtype=torch.float)
-            result_actual.backward(dout, retain_graph=True)
-            grad_ref = input.grad.cpu()
-            result_actual.backward(dout)
-            grad_actual = input.grad.cpu()
-            self.assertEqual(grad_ref, grad_actual)
+                # backward
+                dout = torch.randn(result_ref.size(), dtype=torch.float)
+                loss = (result_ref - dout).sum()
+                loss.backward()
+                grad_ref = input.grad.cpu()
+                loss = (result_actual - dout).sum()
+                loss.backward()
+                grad_actual = input_clone.grad.cpu()
+                self.assertEqual(grad_ref, grad_actual)
 
 if __name__ == '__main__':
     run_tests()
