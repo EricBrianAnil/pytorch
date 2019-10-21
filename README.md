@@ -2,7 +2,7 @@
 
 --------------------------------------------------------------------------------
 
-PyTorch is a Python package that provides two high-level features:
+[PyTorch](https://pytorch.org/) is a [Python](https://www.python.org/downloads/) package that provides two high-level features:
 - Tensor computation (like NumPy) with strong GPU acceleration
 - Deep neural networks built on a tape-based autograd system
 
@@ -337,4 +337,4 @@ Note: this project is unrelated to [hughperkins/pytorch](https://github.com/hugh
 
 ## License
 
-PyTorch is BSD-style licensed, as found in the LICENSE file.
+PyTorch is BSD-style licensed, as found in the [LICENSE](https://github.com/circleci/pytorch/blob/master/LICENSE) file.
